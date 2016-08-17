@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #This script is thought to be used as very simple bulk renamer for nemo 
 #  go to Edit->Preferences->Behavior
@@ -7,7 +7,7 @@
 #What it does: 
 # takes a list of filenames as input, 
 # asks the user for a new name
-# and renames all given files to the schema <new name>(<counter>).<original ending> 
+# and renames all given files to the schema <new name>(<counter>)[.<original ending>] 
 
 
 dry=0 #if set to 1 no rename operations are executed but all commands are shown as text
@@ -15,6 +15,12 @@ dryres=""
 err_src_does_not_exist=""
 err_dst_already_exist=""
 err_could_not_move=""
+
+version=$(nemo --version|tr -dc [:digit:])
+if [ "$version" -lt "287" ]; then
+    zenity --error --text "Sorry your version of Nemo has a bug (https://github.com/linuxmint/nemo/issues/614)\nTherefore this script cannot work. You have to use Nemo >= 2.8.7" &
+    exit 0
+fi
 
 bname=$(zenity --entry --title="enter new base name")
 if [ $? -ne 0 ]; then
@@ -24,11 +30,11 @@ fi
 i=0
 for arg in "$@"
 do
-    # nemo replaces blanks in filenames with 0s, this is a bug. 
-    #https://github.com/linuxmint/nemo/issues/614
-    # for now it is not possible to rename file containing blanks
-
-    name="${arg#file://*}"
+    # nemo escapes blanks in filenames with %20
+    # https://gist.github.com/cdown/1163649
+    arg="${arg//+/ }"
+    fileurl="$( printf '%b' "${arg//%/\\x}" )"
+    name="${fileurl#file://*}"
     dirname=$(dirname "$name")
     if [ -d "$name" ]; then
         ending=""
